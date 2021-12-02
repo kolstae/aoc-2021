@@ -25,7 +25,7 @@
                    (update m k f n)))
                {:depth 0 :pos 0})
        vals
-       (#(apply * %))))
+       (reduce *)))
 
 (comment
 
@@ -45,7 +45,7 @@
                      aim? (update :depth + (* n (:aim m))))))
                {:depth 0 :pos 0 :aim 0})
        ((juxt :depth :pos))
-       (#(apply * %))))
+       (reduce *)))
 
 (comment
 
