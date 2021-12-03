@@ -30,25 +30,27 @@
                 (partition (count input)))]
     (frequencies (nth cs i))))
 
-(defn find-n-with [input [f tie]]
+(defn find-n-with [input f]
   (reduce (fn [ns i]
-            (if (= 1 (count ns))
-              (reduced (first ns))
-              (let [fs (frequencies-at ns i)
-                    [c] (if (apply = (vals fs))
-                          [tie]
-                          (apply f val fs))]
-                (filter #(= c (nth % i)) ns))))
+            (if (next ns)
+              (let [[_ c] (->> (frequencies-at ns i)
+                               (map (comp vec reverse))
+                               sort
+                               f)]
+                (filter #(-> % (nth i) (= c)) ns))
+              (reduced (first ns))))
           input
           (range (count input))))
 
 (defn part-2 [input]
-  (->> [[max-key \1] [min-key \0]]
+  (->> [last first]
        (map #(find-n-with input %))
        (map #(Long/parseLong % 2))
        (reduce *)))
 
 (comment
+
+ (part-2 small-input)
 
  (part-2 input)                                             ;; 6822109
  )
