@@ -1,11 +1,9 @@
 (ns day02
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+  (:require [clojure.string :as str]))
 
 (def small-input (str/split-lines "forward 5\ndown 5\nforward 8\nup 3\ndown 8\nforward 2"))
 
-(def input (->> "day02.txt"
-                io/resource
+(def input (->> "resources/day02.txt"
                 slurp
                 str/split-lines))
 

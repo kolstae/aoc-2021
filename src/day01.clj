@@ -1,11 +1,9 @@
 (ns day01
-  (:require [clojure.java.io :as io]
-            [clojure.string :as str]))
+  (:require [clojure.string :as str]))
 
 (def small-input [199 200 208 210 200 207 240 269 260 263])
 
-(def input (->> "day01.txt"
-                io/resource
+(def input (->> "resources/day01.txt"
                 slurp
                 str/split-lines
                 (map parse-long)))
