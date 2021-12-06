@@ -11,17 +11,12 @@
 (defn bread [fs days]
   (->> (parse fs)
        frequencies
-       (iterate (fn [m]
-                  (let [m (into {}
-                                (map (fn [[d cnt]]
-                                       (if (pos? d)
-                                         [(dec d) cnt]
-                                         [8 cnt])))
-                                m)]
-                    (update m 6 (fnil + 0) (get m 8 0)))))
+       (reduce (partial apply assoc) (vec (repeat 9 0)))
+       (iterate (fn [v] (-> (subvec v 1)
+                            (conj (first v))
+                            (update 6 + (first v)))))
        (drop days)
        first
-       vals
        (reduce +)))
 
 (defn part-1 [input]
