@@ -9,15 +9,13 @@
   (map parse-long (str/split (str/trim input) #",")))
 
 (defn bread [fs days]
-  (->> (parse fs)
-       frequencies
-       (reduce (partial apply assoc) (vec (repeat 9 0)))
-       (iterate (fn [v] (-> (subvec v 1)
-                            (conj (first v))
-                            (update 6 + (first v)))))
-       (drop days)
-       first
-       (reduce +)))
+  (reduce +
+          (first
+           (drop days
+                 (iterate (fn [v] (update (conj (subvec v 1) (first v)) 6 + (first v)))
+                          (reduce (partial apply assoc) (vec (repeat 9 0))
+                                  (frequencies
+                                   (parse fs))))))))
 
 (defn part-1 [input]
   (bread input 80))
