@@ -5,30 +5,19 @@
 
 (def input (mapv parse-long (str/split (str/trim (slurp "resources/day07.txt")) #",")))
 
-(defn part-1 [ns]
-  (let [avg (long (/ (reduce + ns) (count ns)))]
-    (->> (interleave (range avg (apply max ns))
-                     (range (dec avg) (apply min ns) -1))
-         (map (fn [p] [(reduce + (map #(Math/abs ^long (- p %)) ns)) p]))
-         (apply min-key first)
-         first)))
+(defn min-fuel-use [fuel-f ns]
+  (->> (range (apply min ns) (apply max ns))
+       (map (fn [p] (reduce + (map #(fuel-f (- p %)) ns))))
+       (apply min)))
 
 (comment
 
- (part-1 input)                                             ;; 352707
+ (min-fuel-use (fn [^long d] (Math/abs d)) input)           ;; 352707
  )
 
 (def n! (memoize (fn [n] (reduce + (range (inc n))))))
 
-(defn part-2 [ns]
-  (let [avg (long (/ (reduce + ns) (count ns)))]
-    (->> (interleave (range avg (apply max ns))
-                     (range (dec avg) (apply min ns) -1))
-         (map (fn [p] [(reduce + (map #(n! (Math/abs ^long (- p %))) ns)) p]))
-         (apply min-key first)
-         first)))
-
 (comment
 
- (part-2 input)                                             ;; 95519693
+ (min-fuel-use (fn [^long d] (n! (Math/abs d))) input)      ;; 95519693
  )
