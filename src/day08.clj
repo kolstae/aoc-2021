@@ -27,7 +27,7 @@
   (let [ns (map #(into #{} %) ns)
         cnt->ns (group-by count ns)
         known (into {} (keep (fn [s] (when-let [n (cnt->digit (count s))] [n s]))) ns)
-        known (assoc known 9 (first (filter (partial set/subset? (set/union (known 7) (known 4))) (cnt->ns 6))))
+        known (assoc known 9 (first (filter (partial set/subset? (known 4)) (cnt->ns 6))))
         {[zero] true [six] false} (->> (cnt->ns 6)
                                        (remove (into #{} (vals known)))
                                        (group-by (partial set/subset? (known 1))))
