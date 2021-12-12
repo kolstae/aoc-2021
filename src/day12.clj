@@ -10,37 +10,30 @@
 (defn parse [input]
   (->> (str/split-lines input)
        (map #(mapv keyword (str/split % #"-")))
-       (reduce (fn [m [k v]] (-> m
-                                 (update k conj v)
-                                 (update v conj k)))
+       (reduce (fn [m [k v]] (cond-> m
+                               (and (not= :start v) (not= :end k)) (update k conj v)
+                               (and (not= :start k) (not= :end v)) (update v conj k)))
                {})))
 
-(defn mk-extend-path [rs multi twice]
-  (fn [{:keys [path seen single]}]
-    (let [l (get path (dec (count path)))
-          seen (cond-> seen
-                 (and (not (multi l))
-                      (or (not (twice l))
-                          (single l))) (conj l))
-          single (cond-> single
-                   (twice l) (conj l))]
-      (->> (get rs l)
-           (remove seen)
-           (map (fn [k] {:path (conj path k) :seen seen :single single}))
-           (group-by (comp boolean (partial some #{:end}) :path))))))
+(defn mk-extend-path [rs pred]
+  (fn [path]
+    (->> (get path (dec (count path)))
+         (get rs)
+         (filter (partial pred path))
+         (map (partial conj path)))))
 
 (defn find-paths [extend-path]
-  (loop [ps [{:path [:start] :seen #{} :single #{}}] done-ps []]
+  (loop [ps [[:start]] done-ps []]
     (if (seq ps)
-      (let [res (map extend-path ps)]
-        (recur (mapcat #(get % false) res)
-               (apply conj done-ps (mapcat #(get % true) res))))
-      (map :path done-ps))))
+      (let [res (mapcat extend-path ps)]
+        (recur (remove (comp #{:end} last) res)
+               (into done-ps (filter (comp #{:end} last)) res)))
+      done-ps)))
 
 (defn part-1 [input]
   (let [rs (parse input)
         multi (set (filter (comp #(= % (str/upper-case %)) name) (mapcat flatten rs)))]
-    (->> (mk-extend-path rs multi #{})
+    (->> (mk-extend-path rs (fn [path c] (or (multi c) (not-any? #{c} path))))
          find-paths
          count)))
 
@@ -52,13 +45,10 @@
 (defn part-2 [input]
   (let [rs (parse input)
         multi (set (filter (comp #(= % (str/upper-case %)) name) (mapcat flatten rs)))]
-    (->> (mapcat flatten rs)
-         (remove (into #{:start :end} multi))
-         distinct
-         (map hash-set)
-         (map (partial mk-extend-path rs multi))
-         (mapcat find-paths)
-         distinct
+    (->> (mk-extend-path rs (fn [path c] (or (multi c)
+                                             (not-any? #{c} path)
+                                             (apply distinct? (remove multi path)))))
+         find-paths
          count)))
 
 (comment
