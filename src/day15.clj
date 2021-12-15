@@ -9,20 +9,17 @@
   (mapv (partial mapv (comp #(- % (int \0)) int)) (str/split-lines input)))
 
 (defn shortest-path [ns end]
-  (loop [dist {[0 0] 0} v #{} q #{[0 0]}]
-    (let [s (apply min-key #(get dist % Long/MAX_VALUE) q)
-          d (dist s)]
+  (loop [v #{} q {[0 0] 0}]
+    (let [[[y x :as s] d] (apply min-key val q)]
       (if (= s end)
         d
-        (let [v (conj v s)
-              nds (into []
-                        (comp (map (partial mapv + s))
-                              (keep (fn [p] (when (not (v p))
-                                              (when-let [pd (get-in ns p)]
-                                                (when (< (+ d pd) (get dist p Long/MAX_VALUE))
-                                                  [p (+ d pd)]))))))
-                        [[1 0] [-1 0] [0 -1] [0 1]])]
-          (recur (into (dissoc dist s) nds) v (into (disj q s) (map first) nds)))))))
+        (let [v (conj v s)]
+          (recur v (reduce (fn [m p]
+                             (if-let [pd (get-in ns p)]
+                               (update m p (fnil min Long/MAX_VALUE) (+ d pd))
+                               m))
+                           (dissoc q s)
+                           (for [p [[(inc y) x] [(dec y) x] [y (dec x)] [y (inc x)]] :when (not (v p))] p))))))))
 
 (defn part-1 [input]
   (let [ns (parse input)]
@@ -30,7 +27,7 @@
 
 (comment
 
- (part-1 input)                                             ;; 410
+ (time (part-1 input))                                      ;; 410
  )
 
 (defn part-2 [input]
