@@ -1,6 +1,5 @@
 (ns day20
-  (:require [clojure.string :as str]
-            [clojure.pprint :as pp]))
+  (:require [clojure.string :as str]))
 
 (def small-input "..#.#..#####.#.#.#.###.##.....###.##.#..###.####..#####..#....#..#..##..##\n#..######.###...####..#..#####..##..#.#####...##.#.#..#.##..#.#......#.###\n.######.###.####...#.##.##..#..#..#####.....#.#....###..#.##......#.....#.\n.#..#..##..#...##.######.####.####.#.#...#.......#..#.#.#...####.##.#.....\n.#..#...##.#.##..#...##.#.##..###.#......#.#.......#.#.#.####.###.##...#..\n...####.#..#..#.##.#....##..#.####....##...##..#...#......#.#.......#.....\n..##..####..#...#.#.#...##..#.#..###..#####........#..####......#..#\n\n#..#.\n#....\n##..#\n..#..\n..###")
 
@@ -8,37 +7,29 @@
 
 (defn parse [input]
   (let [[alg _ img] (partition-by empty? (str/split-lines input))]
-    [(str/join alg) img]))
+    [(vec (str/join alg)) [\. (vec img)]]))
 
 (def p->b {\. \0 \# \1})
 
-(defn print-img [img] (doseq [l img] (println (str/join l))) img)
+(defn print-img [[bg img]] (doseq [l img] (println (str/join l))) [bg img])
 
-(defn rm-border-trim [img]
-  (let [img (remove (comp (partial every? #{\.}) butlast rest) (subvec img 1 (dec (count img))))
-        img (->> (apply interleave img)
-                 (partition (count img))
-                 rest
-                 butlast
-                 (remove (partial every? #{\.})))]
-    (->> (apply interleave img)
-         (partition (count img))
-         (mapv str/join))))
-
-(defn enhance [alg d img]
+(defn enhance [alg d [bg img]]
   (let [width (count (first img))]
-    (->> (for [y (range (- d) (+ d (count img))) x (range (- d) (+ d width))]
-           (for [y (range (dec y) (+ 2 y)) x (range (dec x) (+ 2 x))]
-             (p->b (get-in img [y x] \.))))
-         (map (comp (partial get alg) #(Long/parseLong % 2) str/join))
-         (partition-all (+ d width d))
-         (mapv str/join))))
+    [(if (= \. bg) (first alg) (peek alg))
+     (into []
+           (comp (map (comp (partial get alg) #(Long/parseLong % 2) str/join))
+                 (partition-all (+ d width d))
+                 (map str/join))
+           (for [y (range (- d) (+ d (count img))) x (range (- d) (+ d width))]
+             (for [y (range (dec y) (+ 2 y)) x (range (dec x) (+ 2 x))]
+               (p->b (get-in img [y x] bg)))))]))
 
 (defn lp-after [[alg img] n]
-  (->> (iterate #(->> % (enhance alg 9) (enhance alg 0) rm-border-trim) img)
+  (->> (iterate #(->> % (enhance alg 1) (enhance alg 1)) img)
        (drop (/ n 2))
        first
        #_print-img
+       second
        (mapcat identity)
        (filter #{\#})
        count))
