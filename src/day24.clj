@@ -1,57 +1,80 @@
 (ns day24
   (:require [clojure.string :as str]
-            [clojure.pprint :as pp]))
+            [clojure.walk :as walk]))
 
 (def small-input "inp w\nadd z w\nmod z 2\ndiv w 2\nadd y w\nmod y 2\ndiv w 2\nadd x w\nmod x 2\ndiv w 2\nmod w 2")
 
 (def input (str/trim (slurp "resources/day24.txt")))
 
 (defn parse [input]
-  (mapv (comp read-string #(str/join (str \( % \)))) (str/split-lines input)))
+  (->> (str/split-lines input)
+       (mapv (comp read-string #(str/join (str \[ % \]))))
+       (walk/postwalk #(if (symbol? %) (keyword %) %))))
+
+(def ops {:mul (fn [s k n] (update s k (if (keyword n)
+                                         (fn [ns]
+                                           (let [ps (for [x ns y (s n)] (* x y))]
+                                             [(apply min ps) (apply max ps)]))
+                                         (fn [[m M]] (vec (sort [(* m n) (* M n)]))))))
+          :add (fn [s k a] (update s k (if (keyword a)
+                                         (fn [ns] (mapv + ns (s a)))
+                                         (fn [[n m]] [(+ a n) (+ a m)]))))
+          :eql (fn [s k a] (update s k (if (keyword a)
+                                         (fn [[n m]]
+                                           (let [[x y] (s a)]
+                                             (cond
+                                               (or (< m x) (< y n)) [0 0]
+                                               (= n m x y) [1 1]
+                                               :else [0 1])))
+                                         (fn [[n m]]
+                                           (cond
+                                             (= n a m) [1 1]
+                                             (<= n a m) [0 1]
+                                             :else [0 0])))))
+          :mod (fn [s k a] (update s k (fn [[n m]]
+                                         (if (or (> (- m n) a)
+                                                 (> (rem n a) (rem m a)))
+                                           [0 (dec a)]
+                                           [(rem n a) (rem m a)]))))
+          :div (fn [s k a] (update s k (fn [[n m]] (vec (sort [(quot n a) (quot m a)])))))})
+
+(defn compute-range [instr input]
+  (loop [state {:w [0 0] :x [0 0] :y [0 0] :z [0 0]}
+         instr instr
+         input input]
+    (if (empty? instr)
+      (:z state)
+      (let [[op r a] (first instr)]
+        (if (= op :inp)
+          (recur (assoc state r (first input)) (rest instr) (rest input))
+          (recur ((get ops op) state r a) (rest instr) input))))))
+
+(defn solver-f [instr digits]
+  (fn rec [fixed-input]
+    (let [input (take 14 (concat fixed-input (repeat [1 9])))
+          [n m] (compute-range instr input)]
+      (cond
+        (and (= 14 (count fixed-input))
+             (== n 0 m))
+        fixed-input
+
+        (or (= 14 (count fixed-input))
+            (not (<= n 0 m)))
+        nil
+
+        :else (->> digits
+                   (map (fn [n] (conj fixed-input [n n])))
+                   (some rec))))))
 
 (comment
 
- (let [ops {'inp :input
-            'add +
-            'mul *
-            'div (comp long /)
-            'mod mod
-            'eql #(if (= %1 %2) 1 0)}
-       ins (parse input)
-       monad (fn [digits]
-               (reduce (fn [state op]
-                         (let [[o k & args] op
-                               f (ops o)
-                               args (map #(state % %) args)]
-                           (-> (if (= :input f)
-                                 (-> (update state :input rest)
-                                     (assoc k (first (:input state))))
-                                 (apply update state k f args))
-                               (assoc :after op))
-                           ))
-                       {'w 0 'x 0 'y 0 'z 0 :input digits} ins))
-       monad-z (fn [ds] (get (monad ds) 'z))
-       ds (range 9 0 -1)
-       as (range 1 10)]
-   #_(->> (for [a [4] b [1] [c d] [[2 9] [1 8]] e [9] f (range 9 4 -1) [g h] [[9 4] [8 3] [7 2] [6 1]] i [8] j (range 7 0 -1) k [(+ j 2)] l [9] m (range 5 0 -1) n [(+ a 5)]
-                :let [mz (get (monad [a b c d e f g h i j k l m n]) 'z)]
-                :when (zero? mz)]
-            (let [n (parse-long (str/join [a b c d e f g h i j k l m n]))]
-              n))
-          (partition 2 1)
-          (take 100)
-          (map (juxt first (partial apply -))))             ;; part-1 41299994879959
-   (->> (for [a [1] b [1] [c d] [[1 8] #_[2 9]] e as f [5] #_(range 5 10) [g h] [[6 1] #_#_#_[9 4] [8 3] [7 2]] i as j [1] #_(range 1 8) k [(+ j 2)] l as m [1] #_(range 1 6) n [(+ a 5)]
-              :let [mz (get (monad [a b c d e f g h i j k l m n]) 'z)]
-              :when (zero? mz)]
-          (let [n (parse-long (str/join [a b c d e f g h i j k l m n]))]
-            n))
-        (partition 2 1)
-        (take 100)
-        (map (juxt first (partial apply -))))               ;; part-2 11189561113216
-   #_(loop [digits (vec (repeat 14 9)) p 0 min-z Long/MAX_VALUE]
-       (if (= p 14)
-         [digits min-z]
-         (let [[d mz] (reduce (fn [[i1 z1] [i2 z2]] (if (<= z1 z2) [i1 z1] [i2 z2])) (map (juxt identity #(monad-z (assoc digits p %))) ds))]
-           (recur (assoc digits p d) (inc p) mz)))))
+ (time
+  (let [solve (solver-f (parse input) (range 9 0 -1))]
+    (str/join (map first (solve [])))))                     ;; part-1 41299994879959
+ ;; Elapsed time: 83869.113627 msecs
+
+ (time
+  (let [solve (solver-f (parse input) (range 1 10))]
+    (str/join (map first (solve [])))))                     ;; part-2 11189561113216
+ ;; Elapsed time: 2801.323236 msecs
  )
